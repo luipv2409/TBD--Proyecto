@@ -1,0 +1,185 @@
+body {
+    font-family: sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 20px;
+}
+.container {
+    max-width: 800px;
+    margin: auto;
+    background: #fff;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+header h1 {
+    text-align: center;
+    color: #333;
+}
+.main-nav ul {
+    list-style: none;
+    padding: 0;
+}
+.main-nav ul li {
+    margin: 10px 0;
+}
+.main-nav ul li a {
+    display: block;
+    padding: 12px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    text-align: center;
+}
+.main-nav ul li a:hover {
+    background-color: #0056b3;
+}
+footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+/* Estilos para formularios de datos */
+.data-form {
+    margin-top: 20px;
+}
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group input[type="tel"],
+.form-group input[type="email"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Importante para que el padding no afecte el ancho */
+}
+.form-actions {
+    margin-top: 20px;
+}
+.btn, .btn-secondary {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 1em;
+    display: inline-block;
+}
+.btn {
+    background-color: #28a745;
+    color: white;
+}
+.btn:hover {
+    background-color: #218838;
+}
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+/* Estilos para mensajes de alerta */
+.message {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Agrega 'select' a la lista de elementos con estilo */
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group input[type="time"], /* Añadido para la hora */
+.form-group input[type="tel"],
+.form-group input[type="email"],
+.form-group select { /* <<<< AÑADE ESTA LÍNEA */
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+
+/* Estilos para las tablas de reportes */
+.report-container {
+    margin-bottom: 40px;
+    border-top: 2px solid #3498db;
+    padding-top: 15px;
+}
+.report-container h2 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+.report-table th, .report-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+.report-table thead {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+.report-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+.report-table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+.no-data {
+    color: #777;
+    font-style: italic;
+}
+
+
+
+.btn-confirmar, .btn-cancelar {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.btn-confirmar {
+    background-color: #28a745; /* verde */
+}
+.btn-confirmar:hover {
+    background-color: #218838;
+}
+
+.btn-cancelar {
+    background-color: #dc3545; /* rojo */
+}
+.btn-cancelar:hover {
+    background-color: #c82333;
+}
