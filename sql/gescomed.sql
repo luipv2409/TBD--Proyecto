@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 30-08-2025 a las 22:33:33
+-- Tiempo de generación: 31-08-2025 a las 22:45:25
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -39,25 +39,47 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_cita_agendar` (IN `p_id_paciente
     END IF;
 END$$
 
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_factura_generar` (IN `p_id_cita` INT)   BEGIN
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_factura_generar` (IN `p_id_cita` INT, IN `p_nit_cliente` VARCHAR(20), IN `p_razon_social` VARCHAR(255))   BEGIN
     DECLARE v_monto_consulta DECIMAL(10, 2);
     DECLARE v_factura_existente INT;
+    DECLARE v_iva DECIMAL(10, 2);
+    DECLARE v_it DECIMAL(10, 2);
+
     SELECT COUNT(*) INTO v_factura_existente FROM factura WHERE id_cita = p_id_cita;
 
     IF v_factura_existente = 0 THEN
-        SET v_monto_consulta = 150.00; -- Costo fijo de ejemplo
-        -- VERSIÓN CORREGIDA: Se eliminó el valor duplicado
-        INSERT INTO factura (id_cita, monto_total, estado_pago, fecha_emision)
-        VALUES (p_id_cita, v_monto_consulta, 'pendiente', CURDATE());
+        -- Asumimos un costo fijo, pero ahora lo tratamos como el total
+        SET v_monto_consulta = 150.00; 
+        
+        -- Calculamos los impuestos en base a la norma boliviana
+        SET v_iva = v_monto_consulta * 0.13;
+        SET v_it = v_monto_consulta * 0.03;
+
+        INSERT INTO factura (
+            id_cita, nit_cliente, razon_social_cliente, 
+            monto_total, monto_base_iva, iva_13, it_3, 
+            estado_pago, fecha_emision
+        )
+        VALUES (
+            p_id_cita, p_nit_cliente, p_razon_social,
+            v_monto_consulta, (v_monto_consulta - v_iva), v_iva, v_it,
+            'pendiente', CURDATE()
+        );
     END IF;
 END$$
 
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_paciente_crud` (IN `p_operacion` VARCHAR(10), IN `p_id_paciente` INT, IN `p_nombre` VARCHAR(50), IN `p_apellido` VARCHAR(50), IN `p_fecha_nacimiento` DATE, IN `p_email` VARCHAR(100))   BEGIN
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_medico_crud` (IN `p_operacion` VARCHAR(10), IN `p_nombre` VARCHAR(50), IN `p_apellido` VARCHAR(50), IN `p_ci` VARCHAR(8), IN `p_email` VARCHAR(100), IN `p_id_especialidad` INT, IN `p_id_consultorio` INT)   BEGIN
     IF p_operacion = 'create' THEN
-        INSERT INTO paciente (nombre, apellido, fecha_nacimiento, email)
-        VALUES (p_nombre, p_apellido, p_fecha_nacimiento, p_email);
+        INSERT INTO medico (nombre, apellido, ci, email, id_especialidad, id_consultorio)
+        VALUES (p_nombre, p_apellido, p_ci, p_email, p_id_especialidad, p_id_consultorio);
     END IF;
-    -- (Aquí la lógica de UPDATE y DELETE se modificaría de forma similar)
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_paciente_crud` (IN `p_operacion` VARCHAR(10), IN `p_id_paciente` INT, IN `p_nombre` VARCHAR(50), IN `p_apellido` VARCHAR(50), IN `p_ci` VARCHAR(8), IN `p_fecha_nacimiento` DATE, IN `p_email` VARCHAR(100))   BEGIN
+    IF p_operacion = 'create' THEN
+        INSERT INTO paciente (nombre, apellido, ci, fecha_nacimiento, email)
+        VALUES (p_nombre, p_apellido, p_ci, p_fecha_nacimiento, p_email);
+    END IF;
 END$$
 
 --
@@ -187,25 +209,34 @@ INSERT INTO `especialidad` (`id_especialidad`, `nombre_especialidad`) VALUES
 CREATE TABLE `factura` (
   `id_factura` int(11) NOT NULL,
   `id_cita` int(11) NOT NULL,
+  `nro_factura` int(11) DEFAULT NULL,
+  `nit_cliente` varchar(20) NOT NULL,
+  `razon_social_cliente` varchar(255) NOT NULL,
+  `nro_autorizacion` varchar(50) DEFAULT NULL,
+  `codigo_control` varchar(50) DEFAULT NULL,
   `monto_total` decimal(10,2) NOT NULL,
-  `estado_pago` enum('pendiente','pagada') DEFAULT 'pendiente',
-  `fecha_emision` date NOT NULL
+  `monto_base_iva` decimal(10,2) NOT NULL,
+  `iva_13` decimal(10,2) NOT NULL,
+  `it_3` decimal(10,2) NOT NULL,
+  `estado_pago` enum('pendiente','pagada','anulada') DEFAULT 'pendiente',
+  `fecha_emision` date NOT NULL,
+  `fecha_pago` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `factura`
 --
 
-INSERT INTO `factura` (`id_factura`, `id_cita`, `monto_total`, `estado_pago`, `fecha_emision`) VALUES
-(1, 1, 150.00, 'pagada', '2025-09-10'),
-(2, 2, 250.00, 'pagada', '2025-09-10'),
-(3, 6, 300.00, 'pendiente', '2025-08-21'),
-(4, 7, 180.00, 'pagada', '2025-08-22'),
-(5, 8, 220.00, 'pendiente', '2025-09-01'),
-(6, 12, 150.00, 'pagada', '2025-08-28'),
-(7, 14, 200.00, 'pagada', '2025-07-15'),
-(8, 15, 150.00, 'pendiente', '2025-08-30'),
-(9, 17, 150.00, 'pendiente', '2025-08-30');
+INSERT INTO `factura` (`id_factura`, `id_cita`, `nro_factura`, `nit_cliente`, `razon_social_cliente`, `nro_autorizacion`, `codigo_control`, `monto_total`, `monto_base_iva`, `iva_13`, `it_3`, `estado_pago`, `fecha_emision`, `fecha_pago`) VALUES
+(1, 1, NULL, '100001', 'Maria Gonzalez', NULL, NULL, 150.00, 0.00, 0.00, 0.00, 'pagada', '2025-09-10', NULL),
+(2, 2, NULL, '100002', 'Jose Rodriguez', NULL, NULL, 250.00, 0.00, 0.00, 0.00, 'pagada', '2025-09-10', NULL),
+(3, 6, NULL, '100006', 'Marcos Diaz', NULL, NULL, 300.00, 0.00, 0.00, 0.00, 'pendiente', '2025-08-21', NULL),
+(4, 7, NULL, '100007', 'Lucia Vega', NULL, NULL, 180.00, 0.00, 0.00, 0.00, 'pagada', '2025-08-22', NULL),
+(5, 8, NULL, '100008', 'Javier Soria', NULL, NULL, 220.00, 0.00, 0.00, 0.00, 'pendiente', '2025-09-01', NULL),
+(6, 12, NULL, '100002', 'Jose Rodriguez', NULL, NULL, 150.00, 0.00, 0.00, 0.00, 'pagada', '2025-08-28', NULL),
+(7, 14, NULL, '100012', 'Roberto Quispe', NULL, NULL, 200.00, 0.00, 0.00, 0.00, 'pagada', '2025-07-15', NULL),
+(8, 15, NULL, '100004', 'Pedro Sanchez', NULL, NULL, 150.00, 0.00, 0.00, 0.00, 'pendiente', '2025-08-30', NULL),
+(9, 17, NULL, '100013', 'Gunnar Ludwing Pecho Vallejos', NULL, NULL, 150.00, 0.00, 0.00, 0.00, 'pendiente', '2025-08-30', NULL);
 
 -- --------------------------------------------------------
 
@@ -242,6 +273,7 @@ CREATE TABLE `medico` (
   `id_medico` int(11) NOT NULL,
   `nombre` varchar(50) NOT NULL,
   `apellido` varchar(50) NOT NULL,
+  `ci` varchar(8) NOT NULL,
   `telefono` varchar(15) DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
   `id_especialidad` int(11) NOT NULL,
@@ -252,17 +284,18 @@ CREATE TABLE `medico` (
 -- Volcado de datos para la tabla `medico`
 --
 
-INSERT INTO `medico` (`id_medico`, `nombre`, `apellido`, `telefono`, `email`, `id_especialidad`, `id_consultorio`) VALUES
-(1, 'Carlos', 'Rivera', '77711122', 'carlos.rivera@email.com', 1, 1),
-(2, 'Ana', 'Gomez', '77733344', 'ana.gomez@email.com', 2, 2),
-(3, 'Luis', 'Martinez', '77755566', 'luis.martinez@email.com', 3, 3),
-(4, 'Sofia', 'Lopez', '77777788', 'sofia.lopez@email.com', 1, 4),
-(5, 'Juan', 'Hernandez', '77799900', 'juan.hdz@email.com', 4, 1),
-(6, 'Elena', 'Morales', '77712345', 'elena.m@email.com', 5, 2),
-(7, 'Miguel', 'Castillo', '77765432', 'miguel.c@email.com', 6, 3),
-(8, 'Isabel', 'Rojas', '77711223', 'isabel.r@email.com', 2, 4),
-(9, 'David', 'Flores', '77733445', 'david.f@email.com', 3, 1),
-(10, 'Valeria', 'Nuñez', '77755667', 'valeria.n@email.com', 4, 2);
+INSERT INTO `medico` (`id_medico`, `nombre`, `apellido`, `ci`, `telefono`, `email`, `id_especialidad`, `id_consultorio`) VALUES
+(1, 'Carlos', 'Rivera', '200001', '77711122', 'carlos.rivera@email.com', 1, 1),
+(2, 'Ana', 'Gomez', '200002', '77733344', 'ana.gomez@email.com', 2, 2),
+(3, 'Luis', 'Martinez', '200003', '77755566', 'luis.martinez@email.com', 3, 3),
+(4, 'Sofia', 'Lopez', '200004', '77777788', 'sofia.lopez@email.com', 1, 4),
+(5, 'Juan', 'Hernandez', '200005', '77799900', 'juan.hdz@email.com', 4, 1),
+(6, 'Elena', 'Morales', '200006', '77712345', 'elena.m@email.com', 5, 2),
+(7, 'Miguel', 'Castillo', '200007', '77765432', 'miguel.c@email.com', 6, 3),
+(8, 'Isabel', 'Rojas', '200008', '77711223', 'isabel.r@email.com', 2, 4),
+(9, 'David', 'Flores', '200009', '77733445', 'david.f@email.com', 3, 1),
+(10, 'Valeria', 'Nuñez', '200010', '77755667', 'valeria.n@email.com', 4, 2),
+(11, 'Anahi', 'Simac Medina', '30079789', NULL, 'ani@gmail.com', 1, 1);
 
 -- --------------------------------------------------------
 
@@ -274,6 +307,7 @@ CREATE TABLE `paciente` (
   `id_paciente` int(11) NOT NULL,
   `nombre` varchar(50) NOT NULL,
   `apellido` varchar(50) NOT NULL,
+  `ci` varchar(8) NOT NULL,
   `fecha_nacimiento` date NOT NULL,
   `email` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -282,22 +316,23 @@ CREATE TABLE `paciente` (
 -- Volcado de datos para la tabla `paciente`
 --
 
-INSERT INTO `paciente` (`id_paciente`, `nombre`, `apellido`, `fecha_nacimiento`, `email`) VALUES
-(1, 'Maria', 'Gonzalez', '1990-05-15', 'maria.g@email.com'),
-(2, 'Jose', 'Rodriguez', '1985-11-20', 'jose.r@email.com'),
-(3, 'Laura', 'Perez', '2018-02-10', 'laura.p@email.com'),
-(4, 'Pedro', 'Sanchez', '1973-07-30', 'pedro.s@email.com'),
-(5, 'Elena', 'Ramirez', '1995-09-01', 'elena.r@email.com'),
-(6, 'Marcos', 'Diaz', '2005-03-12', 'marcos.d@email.com'),
-(7, 'Lucia', 'Vega', '1964-12-25', 'lucia.v@email.com'),
-(8, 'Javier', 'Soria', '1998-08-08', 'javier.s@email.com'),
-(9, 'Carmen', 'Mendoza', '1982-04-19', 'carmen.m@email.com'),
-(10, 'Ricardo', 'Torres', '2015-06-07', 'ricardo.t@email.com'),
-(11, 'Adriana', 'Guzman', '1991-10-30', 'adriana.g@email.com'),
-(12, 'Roberto', 'Quispe', '1955-01-22', 'roberto.q@email.com'),
-(13, 'Gunnar Ludwing', 'Pecho Vallejos', '1990-09-24', 'lui@gmail.com'),
-(15, 'Carlos', 'Toro', '1985-01-26', 'jcarlost@gmail.com'),
-(16, 'Maria', 'Petraca', '1950-04-01', 'petraca@hotmail.com');
+INSERT INTO `paciente` (`id_paciente`, `nombre`, `apellido`, `ci`, `fecha_nacimiento`, `email`) VALUES
+(1, 'Maria', 'Gonzalez', '100001', '1990-05-15', 'maria.g@email.com'),
+(2, 'Jose', 'Rodriguez', '100002', '1985-11-20', 'jose.r@email.com'),
+(3, 'Laura', 'Perez', '100003', '2018-02-10', 'laura.p@email.com'),
+(4, 'Pedro', 'Sanchez', '100004', '1973-07-30', 'pedro.s@email.com'),
+(5, 'Elena', 'Ramirez', '100005', '1995-09-01', 'elena.r@email.com'),
+(6, 'Marcos', 'Diaz', '100006', '2005-03-12', 'marcos.d@email.com'),
+(7, 'Lucia', 'Vega', '100007', '1964-12-25', 'lucia.v@email.com'),
+(8, 'Javier', 'Soria', '100008', '1998-08-08', 'javier.s@email.com'),
+(9, 'Carmen', 'Mendoza', '100009', '1982-04-19', 'carmen.m@email.com'),
+(10, 'Ricardo', 'Torres', '100010', '2015-06-07', 'ricardo.t@email.com'),
+(11, 'Adriana', 'Guzman', '100011', '1991-10-30', 'adriana.g@email.com'),
+(12, 'Roberto', 'Quispe', '100012', '1955-01-22', 'roberto.q@email.com'),
+(13, 'Gunnar Ludwing', 'Pecho Vallejos', '100013', '1990-09-24', 'lui@gmail.com'),
+(15, 'Carlos', 'Toro', '100015', '1985-01-26', 'jcarlost@gmail.com'),
+(16, 'Maria', 'Petraca', '100016', '1950-04-01', 'petraca@hotmail.com'),
+(17, 'Anahi', 'Simac Medina', '30079789', '1990-03-15', 'ani@gmail.com');
 
 --
 -- Índices para tablas volcadas
@@ -349,6 +384,8 @@ ALTER TABLE `historial_clinico`
 --
 ALTER TABLE `medico`
   ADD PRIMARY KEY (`id_medico`),
+  ADD UNIQUE KEY `ci` (`ci`),
+  ADD UNIQUE KEY `ci_2` (`ci`),
   ADD UNIQUE KEY `email` (`email`),
   ADD KEY `id_consultorio` (`id_consultorio`),
   ADD KEY `idx_medico_especialidad` (`id_especialidad`);
@@ -358,6 +395,8 @@ ALTER TABLE `medico`
 --
 ALTER TABLE `paciente`
   ADD PRIMARY KEY (`id_paciente`),
+  ADD UNIQUE KEY `ci` (`ci`),
+  ADD UNIQUE KEY `ci_2` (`ci`),
   ADD UNIQUE KEY `email` (`email`);
 
 --
@@ -404,13 +443,13 @@ ALTER TABLE `historial_clinico`
 -- AUTO_INCREMENT de la tabla `medico`
 --
 ALTER TABLE `medico`
-  MODIFY `id_medico` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id_medico` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT de la tabla `paciente`
 --
 ALTER TABLE `paciente`
-  MODIFY `id_paciente` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id_paciente` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- Restricciones para tablas volcadas
