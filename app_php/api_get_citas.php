@@ -1,12 +1,14 @@
 <?php
-// Primero lo primero, nos conectamos a la base de datos, pues.
+// Che, este archivo es solo un sirviente, no una página completa.
 require_once 'includes/db_connection.php';
-
-// Ché, avisamos al navegador que le vamos a mandar puro JSON, ¿ya?
-header('Content-Type: application/json');
+header('Content-Type: application/json'); // Avisamos que la respuesta es JSON.
 
 try {
-    // Armamos la consulta pa' jalar todas las citas con sus datos.
+    // Jalamos las fechas de inicio y fin que nos manda el calendario.
+    $fecha_inicio = $_GET['start'] ?? '1970-01-01'; // Un valor por defecto por si acaso
+    $fecha_fin = $_GET['end'] ?? '2099-12-31';
+
+    // Armamos la consulta pa' jalar solo las citas del mes que se está viendo.
     $sql = "SELECT 
                 c.id_cita,
                 c.fecha_cita,
@@ -16,9 +18,11 @@ try {
                 CONCAT('Dr. ', m.apellido) AS medico
             FROM cita c
             JOIN paciente p ON c.id_paciente = p.id_paciente
-            JOIN medico m ON c.id_medico = m.id_medico" ;
+            JOIN medico m ON c.id_medico = m.id_medico
+            WHERE c.fecha_cita BETWEEN ? AND ?";
     
-    $stmt = $pdo->query($sql);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$fecha_inicio, $fecha_fin]);
     $citas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $eventos = [];
@@ -48,36 +52,4 @@ try {
 } catch (PDOException $e) {
     // Si algo sale mal, le mandamos un mensajito de error.
     echo json_encode(['error' => $e->getMessage()]);
-}
-
-<?php
-// Che, este archivo es solo un sirviente, no una página completa.
-require_once 'includes/db_connection.php';
-header('Content-Type: application/json'); // Avisamos que la respuesta es JSON.
-
-// Solo si nos pasan el ID de la especialidad, hacemos algo.
-if (isset($_GET['id_especialidad'])) {
-    $id_especialidad = $_GET['id_especialidad'];
-
-    try {
-        // Preparamos la consulta pa' jalar solo los médicos de esa especialidad.
-        $sql = "SELECT id_medico, CONCAT(nombre, ' ', apellido) AS nombre_completo 
-                FROM medico 
-                WHERE id_especialidad = ? 
-                ORDER BY apellido ASC";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$id_especialidad]);
-        $medicos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Devolvemos la lista de médicos en formato JSON.
-        echo json_encode($medicos);
-
-    } catch (PDOException $e) {
-        // Si algo falla, mandamos un error.
-        echo json_encode(['error' => 'No se pudieron cargar los médicos.']);
-    }
-} else {
-    // Si no nos pasan especialidad, devolvemos una lista vacía.
-    echo json_encode([]);
 }

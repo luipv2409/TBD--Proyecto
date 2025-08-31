@@ -9,7 +9,7 @@ try {
     $sql_ingresos = "SELECT e.nombre_especialidad, SUM(f.monto_total) AS total_ingresos FROM factura f JOIN cita c ON f.id_cita = c.id_cita JOIN medico m ON c.id_medico = m.id_medico JOIN especialidad e ON m.id_especialidad = e.id_especialidad WHERE f.estado_pago = 'pagada' GROUP BY e.nombre_especialidad ORDER BY total_ingresos DESC";
     $reporte_ingresos = $pdo->query($sql_ingresos)->fetchAll();
 
-    // 2. Reporte de Citas por Médico (Resumen)
+    // 2. Reporte de Citas por Médico (Resumen) - ESTA CONSULTA YA NO LA NECESITAREMOS DIRECTAMENTE, PERO LA DEJAMOS POR SI ACASO
     $sql_citas_medico = "SELECT CONCAT(m.nombre, ' ', m.apellido) AS nombre_medico, fn_contar_citas_medico(m.id_medico) AS citas_atendidas FROM medico m ORDER BY citas_atendidas DESC";
     $reporte_citas_medico = $pdo->query($sql_citas_medico)->fetchAll();
 
@@ -40,7 +40,7 @@ try {
         $reporte_historial = $stmt_historial->fetchAll();
     }
 
-    // 7. Lógica para el nuevo reporte de Historial de Médicos
+    // 7. Lógica para el reporte de Historial de Médicos (el que ya hicimos)
     $medicos_para_reporte = $pdo->query("SELECT id_medico, CONCAT(nombre, ' ', apellido) AS nombre_completo FROM medico ORDER BY apellido ASC")->fetchAll();
     $citas_del_medico = [];
     $medico_seleccionado_nombre = '';
@@ -74,7 +74,7 @@ try {
 <?php else: ?>
 
     <div class="report-container">
-        <h2>Historial de Citas por Médico</h2>
+        <h2>Historial Detallado de Citas por Médico</h2>
         <p>Selecciona un médico de la lista y haz clic en "Ver Historial" para ver sus citas atendidas.</p>
         
         <form action="reportes.php#historial-medico" method="GET" class="data-form">
@@ -124,90 +124,80 @@ try {
     
     <div class="report-container">
         <h2>Facturas Pendientes de Pago</h2>
-        <?php if (!empty($reporte_facturas_pendientes)): ?>
-            <table class="report-table">
-                <thead><tr><th>ID Factura</th><th>Fecha Emisión</th><th>Monto Total</th><th>Paciente</th><th>Teléfono</th></tr></thead>
-                <tbody>
-                    <?php foreach ($reporte_facturas_pendientes as $fila): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($fila['id_factura']); ?></td>
-                            <td><?php echo htmlspecialchars($fila['fecha_emision']); ?></td>
-                            <td>Bs. <?php echo htmlspecialchars(number_format($fila['monto_total'], 2)); ?></td>
-                            <td><?php echo htmlspecialchars($fila['nombre_paciente']); ?></td>
-                            <td><?php echo htmlspecialchars($fila['telefono_paciente']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?><p class="no-data">No hay facturas pendientes.</p><?php endif; ?>
+        <table class="report-table">
+            <thead><tr><th>ID Factura</th><th>Fecha Emisión</th><th>Monto Total</th><th>Paciente</th><th>Teléfono</th></tr></thead>
+            <tbody>
+                <?php foreach ($reporte_facturas_pendientes as $fila): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($fila['id_factura']); ?></td>
+                        <td><?php echo htmlspecialchars($fila['fecha_emision']); ?></td>
+                        <td>Bs. <?php echo htmlspecialchars(number_format($fila['monto_total'], 2)); ?></td>
+                        <td><?php echo htmlspecialchars($fila['nombre_paciente']); ?></td>
+                        <td><?php echo htmlspecialchars($fila['telefono_paciente']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 
     <div class="report-container">
         <h2>Total de Ingresos por Especialidad</h2>
-        <?php if (!empty($reporte_ingresos)): ?>
-            <table class="report-table">
-                <thead><tr><th>Especialidad</th><th>Total Ingresos</th></tr></thead>
-                <tbody>
-                    <?php foreach ($reporte_ingresos as $fila): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($fila['nombre_especialidad']); ?></td>
-                            <td>Bs. <?php echo htmlspecialchars(number_format($fila['total_ingresos'], 2)); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?><p class="no-data">No hay ingresos registrados para mostrar.</p><?php endif; ?>
+        <table class="report-table">
+            <thead><tr><th>Especialidad</th><th>Total Ingresos</th></tr></thead>
+            <tbody>
+                <?php foreach ($reporte_ingresos as $fila): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($fila['nombre_especialidad']); ?></td>
+                        <td>Bs. <?php echo htmlspecialchars(number_format($fila['total_ingresos'], 2)); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
     
     <div class="report-container">
         <h2>Citas Atendidas por Médico (Resumen)</h2>
-        <?php if (!empty($reporte_citas_medico)): ?>
-            <table class="report-table">
-                <thead><tr><th>Médico</th><th>N° de Citas Atendidas</th></tr></thead>
-                <tbody>
-                    <?php foreach ($reporte_citas_medico as $fila): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($fila['nombre_medico']); ?></td>
-                            <td><?php echo htmlspecialchars($fila['citas_atendidas']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?><p class="no-data">No hay datos de citas para mostrar.</p><?php endif; ?>
+        <table class="report-table">
+            <thead><tr><th>Médico</th><th>N° Total de Citas Atendidas</th></tr></thead>
+            <tbody>
+                <?php foreach ($reporte_citas_medico as $fila): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($fila['nombre_medico']); ?></td>
+                        <td><?php echo htmlspecialchars($fila['citas_atendidas']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 
     <div class="report-container">
         <h2>Distribución de Pacientes por Edad</h2>
-        <?php if (!empty($reporte_edad)): ?>
-            <table class="report-table">
-                <thead><tr><th>Rango de Edad</th><th>Cantidad de Pacientes</th></tr></thead>
-                <tbody>
-                    <?php foreach ($reporte_edad as $fila): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($fila['rango_edad']); ?></td>
-                            <td><?php echo htmlspecialchars($fila['numero_de_pacientes']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?><p class="no-data">No hay pacientes registrados para calcular rangos de edad.</p><?php endif; ?>
+        <table class="report-table">
+            <thead><tr><th>Rango de Edad</th><th>Cantidad de Pacientes</th></tr></thead>
+            <tbody>
+                <?php foreach ($reporte_edad as $fila): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($fila['rango_edad']); ?></td>
+                        <td><?php echo htmlspecialchars($fila['numero_de_pacientes']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 
     <div class="report-container">
         <h2>Citas Atendidas por Mes (Último Año)</h2>
-        <?php if (!empty($reporte_citas_mes)): ?>
-            <table class="report-table">
-                <thead><tr><th>Mes</th><th>Cantidad de Citas</th></tr></thead>
-                <tbody>
-                    <?php foreach ($reporte_citas_mes as $fila): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($fila['mes']); ?></td>
-                            <td><?php echo htmlspecialchars($fila['cantidad_citas']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?><p class="no-data">No hay citas en el último año para mostrar.</p><?php endif; ?>
+        <table class="report-table">
+            <thead><tr><th>Mes</th><th>Cantidad de Citas</th></tr></thead>
+            <tbody>
+                <?php foreach ($reporte_citas_mes as $fila): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($fila['mes']); ?></td>
+                        <td><?php echo htmlspecialchars($fila['cantidad_citas']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
     
     <div id="historial-paciente" class="report-container">

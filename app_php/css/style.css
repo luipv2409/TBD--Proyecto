@@ -183,3 +183,17 @@ footer {
 .btn-cancelar:hover {
     background-color: #c82333;
 }
+
+
+
+
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+    color: white;
+}
+.status-pendiente { background-color: #ffc107; color: #333; }
+.status-pagada { background-color: #28a745; }
+.status-anulada { background-color: #6c757d; }
