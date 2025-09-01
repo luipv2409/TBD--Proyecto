@@ -6,23 +6,18 @@ $error_message = '';
 $success_message = '';
 
 // --- LÓGICA DEL FORMULARIO ---
-
-// Jalamos los filtros de búsqueda y orden de la URL (GET o POST) por si existen.
 $search_term = isset($_REQUEST['search_term']) ? trim($_REQUEST['search_term']) : '';
 $sort_by = isset($_REQUEST['sort_by']) ? $_REQUEST['sort_by'] : 'apellido';
 
-// Si el usuario envió el formulario para AGENDAR (método POST)...
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $id_paciente = $_POST['id_paciente'];
     $id_medico = $_POST['id_medico'];
     $fecha_cita = $_POST['fecha_cita'];
     $hora_cita = $_POST['hora_cita'];
 
-    // Validamos que los campos principales no estén vacíos.
     if (empty($id_paciente) || empty($id_medico) || empty($fecha_cita) || empty($hora_cita)) {
         $error_message = "Todos los campos son obligatorios, pues.";
     } else {
-        // Preparamos todas las fechas y horas para las validaciones.
         $fecha_seleccionada = new DateTime($fecha_cita);
         $fecha_actual = new DateTime('today');
         $fecha_maxima = (new DateTime('today'))->modify('+3 months');
@@ -31,7 +26,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $hora_actual_bolivia = new DateTime("now", new DateTimeZone('America/La_Paz'));
         $hora_actual_str = $hora_actual_bolivia->format('H:i');
 
-        // Empezamos la cadena de validaciones.
         if ($fecha_seleccionada < $fecha_actual) {
             $error_message = "¡No puedes agendar una cita en el pasado, che!";
         } elseif ($fecha_seleccionada > $fecha_maxima) {
@@ -41,10 +35,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } elseif ($fecha_cita == $hora_actual_bolivia->format('Y-m-d') && $hora_cita < $hora_actual_str) {
             $error_message = "No puedes agendar una cita para una hora que ya pasó hoy.";
         } else {
-            // Si todo está en orden, recién intentamos guardar en la base de datos.
             try {
                 $stmt = $pdo->prepare("CALL sp_cita_agendar(?, ?, ?, ?, @resultado)");
                 $stmt->execute([$id_paciente, $id_medico, $fecha_cita, $hora_cita]);
+                $stmt->closeCursor();
+
                 $sql_resultado = $pdo->query("SELECT @resultado AS resultado")->fetch(PDO::FETCH_ASSOC);
                 $mensaje_bd = $sql_resultado['resultado'];
                 if (strpos($mensaje_bd, 'exitosamente') !== false) {
@@ -61,10 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 // --- LÓGICA PARA CARGAR LOS DATOS DEL FORMULARIO ---
 try {
-    // Jalamos la lista de especialidades para el primer menú.
     $especialidades = $pdo->query("SELECT id_especialidad, nombre_especialidad FROM especialidad ORDER BY nombre_especialidad ASC")->fetchAll();
-    
-    // Armamos la consulta dinámica para buscar y ordenar pacientes.
     $sql_pacientes_base = "SELECT id_paciente, CONCAT(nombre, ' ', apellido) AS nombre_completo FROM paciente";
     $params = [];
     if (!empty($search_term)) {
@@ -74,14 +66,10 @@ try {
     }
     $order_clause = ($sort_by === 'nombre') ? " ORDER BY nombre ASC, apellido ASC" : " ORDER BY apellido ASC, nombre ASC";
     $sql_pacientes_base .= $order_clause;
-    
     $stmt_pacientes = $pdo->prepare($sql_pacientes_base);
     $stmt_pacientes->execute($params);
     $pacientes = $stmt_pacientes->fetchAll();
-    
-    // Si la búsqueda da un solo resultado, lo preparamos para auto-selección.
     $paciente_seleccionado_id = (count($pacientes) === 1) ? $pacientes[0]['id_paciente'] : null;
-
 } catch (PDOException $e) {
     $error_message = "Error al cargar los datos iniciales: " . $e->getMessage();
     $pacientes = []; 
@@ -160,7 +148,7 @@ try {
 
     <div class="form-group">
         <label for="hora_cita">Hora de la Cita:</label>
-        <input type="time" id="hora_cita" name="hora_cita" required min="08:00" max="18:00" step="1800">
+        <input type="time" id="hora_cita" name="hora_cita" required min="08:00" max="18:00">
     </div>
 
     <div class="form-actions">
@@ -177,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const horaInput = document.getElementById('hora_cita');
     const hoy = new Date().toISOString().split('T')[0];
 
-    // Función para conectar los menús de Especialidad y Médico
     especialidadSelect.addEventListener('change', function() {
         const id_especialidad = this.value;
         medicoSelect.innerHTML = '<option value="">Cargando médicos...</option>';
@@ -206,19 +193,20 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
     
-    // Función para ajustar la hora mínima si el día seleccionado es hoy
     function ajustarHoraMinima() {
         if (fechaInput.value === hoy) {
             let ahora = new Date();
             let hora = ahora.getHours().toString().padStart(2, '0');
             let minutos = ahora.getMinutes().toString().padStart(2, '0');
+            // La hora mínima para hoy será la hora actual del sistema.
             horaInput.min = `${hora}:${minutos}`;
         } else {
+            // Para otros días, la hora mínima es la de apertura.
             horaInput.min = '08:00';
         }
     }
     fechaInput.addEventListener('change', ajustarHoraMinima);
-    ajustarHoraMinima(); // La llamamos una vez al cargar la página.
+    ajustarHoraMinima();
 });
 </script>
 
