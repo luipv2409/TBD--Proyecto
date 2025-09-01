@@ -9,8 +9,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nit_cliente = trim($_POST['nit_cliente']);
     $razon_social = trim($_POST['razon_social_cliente']);
 
+    // --- CADENA DE VALIDACIONES ---
     if (empty($id_cita) || empty($nit_cliente) || empty($razon_social)) {
         $error_message = "Debes seleccionar una cita y completar el NIT y la Razón Social.";
+    } elseif (!preg_match('/^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ.,]+$/u', $razon_social)) {
+        $error_message = "La Razón Social solo puede contener letras y espacios.";
+    } elseif (!preg_match('/^[0-9]{6,12}$/', $nit_cliente)) {
+        $error_message = "El NIT/CI debe tener entre 6 y 12 números, sin letras ni símbolos.";
     } else {
         try {
             // 1. Llamamos al procedimiento para que cree la factura en la base de datos.
@@ -67,7 +72,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 // Para el menú desplegable, buscamos las citas que se pueden facturar.
 try {
-    $sql_citas = "SELECT c.id_cita, c.fecha_cita, CONCAT(p.nombre, ' ', p.apellido) AS nombre_paciente, CONCAT(m.nombre, ' ', m.apellido) AS medico_nombre
+    // Novedad: Ahora la consulta también jala el CI y el nombre completo del paciente.
+    $sql_citas = "SELECT 
+                    c.id_cita, 
+                    c.fecha_cita, 
+                    CONCAT(p.nombre, ' ', p.apellido) AS nombre_paciente, 
+                    p.ci AS paciente_ci,
+                    CONCAT(m.nombre, ' ', m.apellido) AS medico_nombre
                   FROM cita c
                   JOIN paciente p ON c.id_paciente = p.id_paciente
                   JOIN medico m ON c.id_medico = m.id_medico
@@ -84,7 +95,7 @@ try {
 <?php include 'includes/header.php'; ?>
 
 <h2>Generar Factura de Cita</h2>
-<p>Seleccione una cita y complete los datos del cliente para la facturación.</p>
+<p>Seleccione una cita y los datos del cliente se autocompletarán.</p>
 
 <?php if (!empty($error_message)): ?>
     <div class="message error"><?php echo $error_message; ?></div>
@@ -96,7 +107,11 @@ try {
         <select id="id_cita" name="id_cita" required>
             <option value="">-- Seleccione una cita --</option>
             <?php foreach ($citas_facturables as $cita): ?>
-                <option value="<?php echo htmlspecialchars($cita['id_cita']); ?>"><?php echo htmlspecialchars($cita['fecha_cita'] . " - " . $cita['nombre_paciente'] . " (Dr. " . $cita['medico_nombre'] . ")"); ?></option>
+                <option value="<?php echo htmlspecialchars($cita['id_cita']); ?>"
+                        data-nombre="<?php echo htmlspecialchars($cita['nombre_paciente']); ?>"
+                        data-ci="<?php echo htmlspecialchars($cita['paciente_ci']); ?>">
+                    <?php echo htmlspecialchars($cita['fecha_cita'] . " - " . $cita['nombre_paciente'] . " (Dr. " . $cita['medico_nombre'] . ")"); ?>
+                </option>
             <?php endforeach; ?>
         </select>
     </div>
@@ -105,11 +120,16 @@ try {
         <h3>Datos para la Factura</h3>
         <div class="form-group">
             <label for="nit_cliente">NIT / CI del Cliente:</label>
-            <input type="text" id="nit_cliente" name="nit_cliente" required placeholder="Carnet o NIT para la factura">
+            <input type="text" id="nit_cliente" name="nit_cliente" required placeholder="Carnet o NIT para la factura"
+                   pattern="[0-9]{6,12}"
+                   maxlength="12"
+                   title="El NIT/CI debe tener entre 6 y 12 números, sin letras ni símbolos.">
         </div>
         <div class="form-group">
             <label for="razon_social_cliente">Nombre o Razón Social:</label>
-            <input type="text" id="razon_social_cliente" name="razon_social_cliente" required placeholder="Nombre completo o razón social">
+            <input type="text" id="razon_social_cliente" name="razon_social_cliente" required placeholder="Nombre completo o razón social"
+                   pattern="[a-zA-Z\sñÑáéíóúÁÉÍÓÚ.,]+"
+                   title="La Razón Social solo puede contener letras, espacios y puntos/comas.">
         </div>
     </div>
 
@@ -118,5 +138,32 @@ try {
         <a href="index.php" class="btn-secondary">Volver al Menú</a>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const citaSelect = document.getElementById('id_cita');
+    const nitInput = document.getElementById('nit_cliente');
+    const razonSocialInput = document.getElementById('razon_social_cliente');
+
+    citaSelect.addEventListener('change', function() {
+        // Buscamos la opción que el usuario ha seleccionado.
+        const selectedOption = this.options[this.selectedIndex];
+
+        // Jalamos los datos que guardamos en la opción.
+        const nombre = selectedOption.getAttribute('data-nombre');
+        const ci = selectedOption.getAttribute('data-ci');
+
+        // Llenamos los campos del formulario.
+        if (nombre && ci) {
+            nitInput.value = ci;
+            razonSocialInput.value = nombre;
+        } else {
+            // Si el usuario vuelve a seleccionar la opción vacía, limpiamos los campos.
+            nitInput.value = '';
+            razonSocialInput.value = '';
+        }
+    });
+});
+</script>
 
 <?php include 'includes/footer.php'; ?>

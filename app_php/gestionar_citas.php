@@ -1,6 +1,7 @@
 <?php
 // Nos conectamos a la base de datos para empezar.
 require_once 'includes/db_connection.php';
+$error_message = '';
 
 // Esta parte se ejecuta si se hace clic en uno de los botones (Confirmar o Cancelar).
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id_cita'])) {
@@ -68,37 +69,20 @@ include 'includes/header.php';
                     <td><?php echo htmlspecialchars($cita['nombre_medico']); ?></td>
                     <td><strong><?php echo htmlspecialchars(ucfirst($cita['estado'])); ?></strong></td>
                     <td>
-                        <?php
-                        // Novedad: La lógica ahora está aquí adentro.
-                        if ($cita['estado'] == 'pendiente') {
-                            // Agarramos la hora actual de Bolivia.
-                            $hora_actual = new DateTime("now", new DateTimeZone('America/La_Paz'));
-                            $hora_cita = new DateTime($cita['hora_cita']);
-
-                            // Comparamos si la hora de la cita ya pasó.
-                            if ($hora_cita < $hora_actual) {
-                                // Si ya pasó, mostramos "No Asistió".
-                                echo '<span class="status-ausente">No Asistió</span>';
-                            } else {
-                                // Si todavía no es la hora, recién mostramos los botones.
-                                ?>
-                                <form action="gestionar_citas.php" method="POST" style="display:inline;">
-                                    <input type="hidden" name="id_cita" value="<?php echo $cita['id_cita']; ?>">
-                                    <input type="hidden" name="nuevo_estado" value="atendida">
-                                    <button type="submit" class="btn-confirmar">Confirmar Asistencia</button>
-                                </form>
-                                <form action="gestionar_citas.php" method="POST" style="display:inline;">
-                                    <input type="hidden" name="id_cita" value="<?php echo $cita['id_cita']; ?>">
-                                    <input type="hidden" name="nuevo_estado" value="cancelada">
-                                    <button type="submit" class="btn-cancelar">Cancelar</button>
-                                </form>
-                                <?php
-                            }
-                        } else {
-                            // Si la cita ya está 'atendida' o 'cancelada', no mostramos nada.
-                            echo '-';
-                        }
-                        ?>
+                        <?php if ($cita['estado'] == 'pendiente'): ?>
+                            <form action="gestionar_citas.php" method="POST" style="display:inline;">
+                                <input type="hidden" name="id_cita" value="<?php echo $cita['id_cita']; ?>">
+                                <input type="hidden" name="nuevo_estado" value="atendida">
+                                <button type="submit" class="btn-confirmar">Confirmar Asistencia</button>
+                            </form>
+                            <form action="gestionar_citas.php" method="POST" style="display:inline;">
+                                <input type="hidden" name="id_cita" value="<?php echo $cita['id_cita']; ?>">
+                                <input type="hidden" name="nuevo_estado" value="cancelada">
+                                <button type="submit" class="btn-cancelar">Cancelar</button>
+                            </form>
+                        <?php else: ?>
+                            -
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>

@@ -1,6 +1,15 @@
 <?php
+// Novedad: Iniciamos una sesión para poder mostrar mensajes de éxito después de recargar.
+session_start();
 require_once 'includes/db_connection.php';
 $error_message = '';
+$success_message = '';
+
+// Novedad: Chequeamos si hay un mensaje de éxito guardado en la sesión.
+if (isset($_SESSION['success_message'])) {
+    $success_message = $_SESSION['success_message'];
+    unset($_SESSION['success_message']); // Lo borramos para que no aparezca de nuevo.
+}
 
 // --- LÓGICA DE ACCIONES (PAGAR / ANULAR) ---
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id_factura'])) {
@@ -9,8 +18,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id_factura'])) {
 
     if ($accion === 'pagar') {
         $sql_update = "UPDATE factura SET estado_pago = 'pagada', fecha_pago = NOW() WHERE id_factura = ?";
+        $_SESSION['success_message'] = "Factura #" . htmlspecialchars($id_factura) . " marcada como Pagada.";
     } elseif ($accion === 'anular') {
         $sql_update = "UPDATE factura SET estado_pago = 'anulada' WHERE id_factura = ?";
+        $_SESSION['success_message'] = "Factura #" . htmlspecialchars($id_factura) . " fue Anulada.";
     }
 
     if (isset($sql_update)) {
@@ -27,10 +38,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id_factura'])) {
 
 // --- LÓGICA DE FILTROS Y BÚSQUEDA ---
 try {
-    // Jalamos los filtros de la URL, si existen.
-    $fecha_inicio = $_GET['fecha_inicio'] ?? '';
-    $fecha_fin = $_GET['fecha_fin'] ?? '';
+    // Buscamos las fechas por defecto para el filtro.
+    $primera_fecha_factura = $pdo->query("SELECT MIN(fecha_emision) FROM factura")->fetchColumn() ?? date('Y-m-d');
+    $fecha_hoy = date('Y-m-d');
+
+    // Usamos esas fechas si el usuario no ha filtrado nada todavía.
+    $fecha_inicio = $_GET['fecha_inicio'] ?? $primera_fecha_factura;
+    $fecha_fin = $_GET['fecha_fin'] ?? $fecha_hoy;
     $estado_filtro = $_GET['estado_filtro'] ?? 'todos';
+
+    // Novedad: Aquí empieza el control de calidad para las fechas.
+    $fecha_inicio_obj = DateTime::createFromFormat('Y-m-d', $fecha_inicio);
+    $fecha_fin_obj = DateTime::createFromFormat('Y-m-d', $fecha_fin);
+
+    if ($fecha_inicio_obj === false || $fecha_fin_obj === false) {
+        throw new Exception("El formato de una de las fechas es inválido.");
+    }
+    if ($fecha_inicio_obj > $fecha_fin_obj) {
+        throw new Exception("La fecha de inicio no puede ser posterior a la fecha de fin.");
+    }
+    // Límite para que no busquen en el futuro lejano
+    if ($fecha_fin_obj > new DateTime()) {
+        $fecha_fin = date('Y-m-d'); // Si ponen una fecha futura, la reseteamos a hoy.
+    }
+    // --- Fin del control de calidad ---
+
 
     // Armamos la consulta de a pedacitos.
     $sql_base = "SELECT f.*, CONCAT(p.nombre, ' ', p.apellido) AS paciente_nombre
@@ -77,8 +109,9 @@ try {
         }
     }
 
-} catch (PDOException $e) {
-    $error_message = "Error al cargar las facturas: " . $e->getMessage();
+} catch (Exception $e) {
+    // Atrapamos tanto los errores de BD como nuestras validaciones.
+    $error_message = $e->getMessage();
     $facturas = [];
 }
 ?>
@@ -87,6 +120,9 @@ try {
 
 <h2>Módulo de Facturación y Arqueo</h2>
 <p>Filtra y gestiona todas las facturas emitidas por el sistema.</p>
+
+<?php if(!empty($success_message)): ?><div class="message success"><?php echo $success_message; ?></div><?php endif; ?>
+<?php if(!empty($error_message)): ?><div class="message error"><?php echo $error_message; ?></div><?php endif; ?>
 
 <div class="report-container">
     <h3>Filtrar Facturas</h3>
@@ -110,9 +146,9 @@ try {
 
 <div class="report-container">
     <h3>Resumen del Periodo Filtrado</h3>
-    <p><strong>Total Facturado (Válido):</strong> Bs. <?php echo number_format($total_facturado, 2); ?></p>
-    <p style="color: green;"><strong>Total Pagado:</strong> Bs. <?php echo number_format($total_pagado, 2); ?></p>
-    <p style="color: orange;"><strong>Total Pendiente por Cobrar:</strong> Bs. <?php echo number_format($total_pendiente, 2); ?></p>
+    <p><strong>Total Facturado (Válido):</strong> Bs. <?php echo number_format($total_facturado ?? 0, 2); ?></p>
+    <p style="color: green;"><strong>Total Pagado:</strong> Bs. <?php echo number_format($total_pagado ?? 0, 2); ?></p>
+    <p style="color: orange;"><strong>Total Pendiente por Cobrar:</strong> Bs. <?php echo number_format($total_pendiente ?? 0, 2); ?></p>
 </div>
 
 <div class="report-container">

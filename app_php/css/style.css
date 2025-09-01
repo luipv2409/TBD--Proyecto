@@ -197,3 +197,28 @@ footer {
 .status-pendiente { background-color: #ffc107; color: #333; }
 .status-pagada { background-color: #28a745; }
 .status-anulada { background-color: #6c757d; }
+
+
+
+.btn-confirmar, .btn-cancelar {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.btn-confirmar {
+    background-color: #28a745; /* verde */
+}
+.btn-confirmar:hover {
+    background-color: #218838;
+}
+
+.btn-cancelar {
+    background-color: #dc3545; /* rojo */
+}
+.btn-cancelar:hover {
+    background-color: #c82333;
+}
